@@ -15,6 +15,11 @@ resources:
 elasticSearchHost: elasticsearch
 elasticSearchPort: 9200
 
+#tolerations:
+#  - key:
+#    operator:
+#    effect:
+
 #config: |-
 
 #parsers: |-

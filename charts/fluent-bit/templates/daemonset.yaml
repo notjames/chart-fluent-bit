@@ -1,5 +1,5 @@
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{.Values.name}}
@@ -11,71 +11,82 @@ metadata:
     chart: "{{template "namewithversion" .}}"
     release: "{{.Release.Name}}"
     heritage: "{{.Release.Service}}"
+    app.kubernetes.io/name: {{ template "name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+#   app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: infrastructure
+    app.kubernetes.io/part-of: logging-central
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ template "namewithversion" . }}
 spec:
+  selector:
+    matchLabels:
+      k8s-app: fluent-bit-logging
   template:
     metadata:
       labels:
         k8s-app: fluent-bit-logging
         version: v1
         kubernetes.io/cluster-service: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "2020"
+        prometheus.io/path: /api/v1/metrics/prometheus
     spec:
       serviceAccountName: {{.Values.name}}
       containers:
-        - name: {{.Values.name}}
-          image: {{.Values.image}}
-          imagePullPolicy: Always
-          env:
-          - name: FLUENT_ELASTICSEARCH_HOST
-            value: "{{.Values.elasticSearchHost}}"
-          - name: FLUENT_ELASTICSEARCH_PORT
-            value: "{{.Values.elasticSearchPort}}"
-          resources:
-            requests:
-              cpu: {{.Values.resources.requests.cpu}}
-              memory: {{.Values.resources.requests.mem}}
-            limits:
-              cpu: {{.Values.resources.limits.cpu}}
-              memory: {{.Values.resources.limits.mem}}
-          ports:
-          - containerPort: 2020
-          volumeMounts:
-          - name: fbconfig
-            mountPath: /fluent-bit/etc/fluent-bit.conf
-            subPath: fluent-bit.conf
-          - name: fbconfig
-            mountPath: /fluent-bit/etc/parsers.conf
-            subPath: parsers.conf
-          - name: varlog
-            mountPath: /var/log
-            readOnly: true
-          - name: runlog
-            mountPath: /run/log
-            readOnly: true
-          - name: varlibdockercontainers
-            mountPath: /var/lib/docker/containers
-            readOnly: true
-      {{- if .Values.tolerations}}
-      tolerations:
-      {{- range .Values.tolerations}}
-      - key: {{.key | default ("")}}
-        value: {{.value | default ("")}}
-        operator: {{.operator | default ("Equal")}}
-        effect: {{.effect | default ("")}}
-      {{- end}}
-      {{- end}}
+      - name: {{.Values.name}}
+        image: {{.Values.image}}
+        imagePullPolicy: Always
+        env:
+# following emits an error but the error seems to be a k8s bug:
+# https://github.com/kubernetes/kubernetes/issues/82296
+        - name: FLUENT_ELASTICSEARCH_HOST
+          value: {{default "elasticsearch" .Values.elasticSearchHost | quote }}
+        - name: FLUENT_ELASTICSEARCH_PORT
+          value: {{default "9200" .Values.elasticSearchPort | quote }}
+        resources:
+          requests:
+            cpu: {{.Values.resources.requests.cpu}}
+            memory: {{.Values.resources.requests.mem}}
+          limits:
+            cpu: {{.Values.resources.limits.cpu}}
+            memory: {{.Values.resources.limits.mem}}
+        ports:
+        - containerPort: 2020
+        volumeMounts:
+        - name: fbconfig
+          mountPath: /fluent-bit/etc/
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: runlog
+          mountPath: /run/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
       terminationGracePeriodSeconds: 10
       volumes:
-      - name: fbconfig
-        configMap:
-          name: {{ template "name" . }}
       - name: varlog
         hostPath:
           path: /var/log
-      # Some operating systems store logs in /run/log
-      # https://goo.gl/apMdJY https://goo.gl/WaHSNf
+# Some operating systems store logs in /run/log
+# https://goo.gl/apMdJY https://goo.gl/WaHSNf
       - name: runlog
         hostPath:
           path: /run/log
       - name: varlibdockercontainers
         hostPath:
           path: /var/lib/docker/containers
+      - name: fbconfig
+        configMap:
+          name: {{ template "name" . }}
+      {{- if .Values.tolerations}}
+      tolerations:
+        {{- range .Values.tolerations}}
+        - key: {{ default "" .key }}
+          operator: {{ default "" .operator }}
+          effect: {{ default "" .effect }}
+        {{- end}}
+      {{- end}}

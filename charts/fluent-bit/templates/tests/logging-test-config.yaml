@@ -10,7 +10,7 @@ metadata:
 data:
   run.sh: |-
     MAX_ATTEMPTS=5
-    URL="http://{{ template "name" . }}.{{ .Release.Namespace }}:2020/api/v1/metrics)"
+    URL="http://{{ template "name" . }}.{{ .Release.Namespace }}:2020/api/v1/metrics"
 
     @test "Test that API is available..." {
       GOOD=1

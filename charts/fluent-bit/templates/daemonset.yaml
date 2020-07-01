@@ -33,6 +33,10 @@ spec:
         prometheus.io/port: "2020"
         prometheus.io/path: /api/v1/metrics/prometheus
     spec:
+      {{- if .Values.pullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.pullSecret }}
+      {{- end }}
       serviceAccountName: {{.Values.name}}
       containers:
       - name: {{.Values.name}}

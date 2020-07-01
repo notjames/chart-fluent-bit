@@ -1,6 +1,8 @@
 ---
+pullSecret: jimconn
 name: fluent-bit
-image: quay.io/samsung_cnct/fluent-bit-container:prod
+#image: quay.io/samsung_cnct/fluent-bit-container:prod
+image: harbor.cnct.io/cnct/fluent-bit:1.0
 
 cluster_uuid: 00000000-0000-0000-0000-000000000000
 
